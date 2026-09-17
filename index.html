@@ -1041,8 +1041,8 @@ var MAT = {
     {n:"Soft White 1/2\" (12mm)",p:494,w:3.68,h:0.76,banda:true,formato:'3.68 x 0.76 m'}
   ],
   confiad_tools:[
-    {n:"Adhesivo Soft White (75 ml)",p:21,w:1,h:1,nota:'Hasta agotar stock'},
-    {n:"Plastic Plunber",p:17,w:1,h:1,nota:'Hasta agotar stock'}
+    {n:"Adhesivo Soft White (75 ml)",p:21,w:1,h:1,banda:true,uLabel:'unidades',nota:'Hasta agotar stock'},
+    {n:"Plastic Plunber",p:17,w:1,h:1,banda:true,uLabel:'unidades',nota:'Hasta agotar stock'}
   ],
   sint_smarca:[
     {n:"Piedra Sinterizada Sin Marca 1.2cm",p:70,w:3.20,h:1.60}
@@ -1352,7 +1352,7 @@ Object.keys(MAT).forEach(function(catKey){
       inst:!!m.inst, unidad:m.unidad||null, manual:!!m.manual, suma:!!m.suma,
       altagama: catKey==='altagama',
       cos:!!m.cos, medidas:m.medidas||[],
-      banda:!!m.banda,
+      banda:!!m.banda, uLabel:m.uLabel||null,
       nota:m.nota||null,
       fullName: catName+' · '+m.n});
   });
@@ -1508,7 +1508,7 @@ function acSearch(prefix){
   if(!results.length){drop.style.display='none';return}
   results.forEach(function(m){
     var div=document.createElement('div');div.className='ac-item';
-    var priceLabel=m.banda?'$'+m.p+' / banda entera ('+m.w.toFixed(2)+'×'+m.h.toFixed(2)+'m)':m.porc?'$'+m.p+'/m² (x pieza $'+(m.p*m.m2caja).toFixed(2)+')':'$'+m.p+'/m²';
+    var priceLabel=m.banda?'$'+m.p+' / '+(m.uLabel?m.uLabel.replace(/s$/,''):'banda entera')+(m.uLabel?'':' ('+m.w.toFixed(2)+'×'+m.h.toFixed(2)+'m)'):m.porc?'$'+m.p+'/m² (x pieza $'+(m.p*m.m2caja).toFixed(2)+')':'$'+m.p+'/m²';
     div.innerHTML='<div>'+m.n+'</div><div class="ac-cat">'+m.catName+' · '+priceLabel+'</div>';
     div.onclick=function(){acSelect(prefix,m)};
     drop.appendChild(div);
@@ -1521,7 +1521,7 @@ function acSelect(prefix,m){
   $(prefix+'-selname').textContent=(m.inst?'':''+m.catName+' · ')+m.n;
   var priceInfo= m.inst
     ? (m.manual ? 'Precio manual — ingresa el precio' : '$'+m.p+' / '+m.unidad+' (inc. IGV) · Sin descuento')
-    : m.banda ? '$'+m.p+' banda entera · '+m.w.toFixed(2)+'×'+m.h.toFixed(2)+'m ('+( m.w*m.h).toFixed(2)+' m²) · inc. IGV' : '$'+m.p+'/m² (precio lista, inc. IGV)'+(m.pPCM?' · PCM: $'+m.pPCM+'/m²':'')+( m.porc?' · Formato: '+m.medida+' · '+m.m2caja+' m²/caja':'');
+    : m.banda ? (m.uLabel?'$'+m.p+' / '+m.uLabel.replace(/s$/,'')+' · inc. IGV':'$'+m.p+' banda entera · '+m.w.toFixed(2)+'×'+m.h.toFixed(2)+'m ('+( m.w*m.h).toFixed(2)+' m²) · inc. IGV') : '$'+m.p+'/m² (precio lista, inc. IGV)'+(m.pPCM?' · PCM: $'+m.pPCM+'/m²':'')+( m.porc?' · Formato: '+m.medida+' · '+m.m2caja+' m²/caja':'');
   $(prefix+'-selprice').textContent=priceInfo;
   $(prefix+'-sel').style.display='block';
 
@@ -1548,7 +1548,7 @@ function acSelect(prefix,m){
       // Banda: hide cut types, show only qty and desc
       if(tbsEl) tbsEl.style.display='none';
       if(descRow) descRow.style.display='block';
-      if(cntLabel) cntLabel.textContent='Cantidad de bandas';
+      if(cntLabel) cntLabel.textContent='Cantidad de '+(m.uLabel||'bandas');
     } else if(m.cos){
       if(tbsEl) tbsEl.style.display='none';
       if(cosFields) cosFields.style.display='block';
@@ -1820,9 +1820,9 @@ function qAdd(){
     var pBandaConIGV=m.p*(1-desc2/100);
     var totSinIGV=(pBandaConIGV*cnt)/1.18;
     qItems.push({n:m.n,cat:m.cat,catName:m.catName,fullN:m.catName+' · '+m.n,
-      tl:'BANDA ENTERA',d:m.w.toFixed(2)+' x '+m.h.toFixed(2)+' m',
+      tl:m.uLabel?'ACCESORIO':'BANDA ENTERA',d:m.uLabel?(cnt+' '+m.uLabel):(m.w.toFixed(2)+' x '+m.h.toFixed(2)+' m'),
       ar:m.w*m.h,pLista:m.p,desc:desc2,pFinal:pBandaConIGV,pSinIGV:pBandaConIGV/1.18,
-      cnt:cnt,tot:totSinIGV,banda:true,pBanda:pBandaConIGV});
+      cnt:cnt,tot:totSinIGV,banda:true,pBanda:pBandaConIGV,uLabel:m.uLabel||null});
     qItemAmb.push(qAmbActual);
     qRender();$('qcard').style.display='block';$('cot').style.display='none';$('qbtns').style.display='none';
     qClearFields(); return;
@@ -2173,8 +2173,8 @@ function renderQItem(it,i,list){
   var d=document.createElement('div');d.className='qi';
   var detalle;
   if(it.banda){
-    detalle='BANDA ENTERA · '+it.d+(it.cnt>1?' · Cant: '+it.cnt+' bandas':'')+
-      '<br>$'+it.pFinal.toFixed(2)+'/banda'+(it.desc>0?' (-'+it.desc+'% dto. Lista: $'+it.pLista.toFixed(2)+')':'')+
+    detalle=(it.uLabel?'ACCESORIO':'BANDA ENTERA')+' · '+it.d+(it.cnt>1?' · Cant: '+it.cnt+' '+(it.uLabel||'bandas'):'')+
+      '<br>$'+it.pFinal.toFixed(2)+'/'+(it.uLabel?it.uLabel.replace(/s$/,''):'banda')+(it.desc>0?' (-'+it.desc+'% dto. Lista: $'+it.pLista.toFixed(2)+')':'')+
       ' · Total c/IGV: '+f$(it.pFinal*it.cnt);
   } else if(it.inst){
     detalle='INSTALACIÓN · '+it.d+'<br>$'+(it.pFinal||it.pLista).toFixed(2)+'/'+it.unidad+' · Subtotal s/IGV: '+f$(it.tot);
@@ -3537,7 +3537,7 @@ function qEditItem(i){
     }
   } else if(it.banda){
     $('mei-qty-wrap').style.display='block';
-    $('mei-qty-label').textContent='Cantidad de bandas';
+    $('mei-qty-label').textContent='Cantidad de '+(it.uLabel||'bandas');
     $('mei-qty').value = it.cnt||1;
   } else if(it.porc){
     $('mei-qty-wrap').style.display='block';
