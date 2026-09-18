@@ -540,12 +540,14 @@ select:focus,input:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(138,
     <h2>⚙️ Configuración</h2>
     <div class="r2">
       <div>
-        <label>Descuento global (%)</label>
-        <input type="number" id="cmp-desc" placeholder="0" min="0" max="100" step="0.5" oninput="cmpRender()">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#555;padding-top:8px">
+          <input type="checkbox" id="cmp-showsinigv" onchange="cmpRender()" style="width:auto;margin:0">
+          Mostrar precios sin IGV
+        </label>
       </div>
       <div>
         <label>&nbsp;</label>
-        <div style="font-size:10px;color:#888;padding:11px 0;line-height:1.5">Indica los m² en cada material que agregues abajo 👇</div>
+        <div style="font-size:10px;color:#888;padding:11px 0;line-height:1.5">Indica los m² y el descuento de cada material abajo 👇</div>
       </div>
     </div>
   </div>
@@ -3798,9 +3800,15 @@ function cmpAddRow(){
       '<div class="ac-drop" id="cmp-drop-'+idx+'"></div>'+
     '</div>'+
     '<div id="cmp-sel-'+idx+'" style="font-size:10px;color:#888;margin-top:5px;min-height:16px"></div>'+
-    '<div style="margin-top:8px">'+
-      '<label style="display:block;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:4px">m² a cotizar</label>'+
-      '<input type="number" id="cmp-m2-'+idx+'" value="1" min="0.01" step="0.01" oninput="cmpRender()" style="width:100%;background:#fff;border:1px solid #ccc9c0;border-radius:5px;color:#1a1a1a;font-family:inherit;font-size:13px;padding:8px 10px;margin-bottom:0">'+
+    '<div class="r2" style="margin-top:8px">'+
+      '<div>'+
+        '<label style="display:block;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:4px">m² a cotizar</label>'+
+        '<input type="number" id="cmp-m2-'+idx+'" value="1" min="0.01" step="0.01" oninput="cmpRender()" style="width:100%;background:#fff;border:1px solid #ccc9c0;border-radius:5px;color:#1a1a1a;font-family:inherit;font-size:13px;padding:8px 10px;margin-bottom:0">'+
+      '</div>'+
+      '<div>'+
+        '<label style="display:block;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:4px">Descuento (%)</label>'+
+        '<input type="number" id="cmp-desc-'+idx+'" value="0" min="0" max="100" step="0.5" oninput="cmpRender()" style="width:100%;background:#fff;border:1px solid #ccc9c0;border-radius:5px;color:#1a1a1a;font-family:inherit;font-size:13px;padding:8px 10px;margin-bottom:0">'+
+      '</div>'+
     '</div>'+
     (idx>=3?'<button onclick="cmpRemoveRow('+idx+')" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#bbb;font-size:16px;cursor:pointer">×</button>':'');
   $('cmp-items-inputs').appendChild(wrap);
@@ -3808,7 +3816,9 @@ function cmpAddRow(){
 
 function cmpRemoveRow(idx){
   var savedM2=cmpRows.map(function(m,i){var el=$('cmp-m2-'+i);return el?el.value:'1';});
+  var savedDesc=cmpRows.map(function(m,i){var el=$('cmp-desc-'+i);return el?el.value:'0';});
   savedM2.splice(idx,1);
+  savedDesc.splice(idx,1);
   cmpRows.splice(idx,1);
   $('cmp-items-inputs').innerHTML='';
   var saved=cmpRows.slice();
@@ -3821,6 +3831,7 @@ function cmpRemoveRow(idx){
       $('cmp-sel-'+i).textContent=saved[i].catName+' · $'+saved[i].p+'/m²';
       $('cmp-sel-'+i).style.color='#1a1a1a';
       if($('cmp-m2-'+i)&&savedM2[i]) $('cmp-m2-'+i).value=savedM2[i];
+      if($('cmp-desc-'+i)&&savedDesc[i]) $('cmp-desc-'+i).value=savedDesc[i];
     }
   }
   cmpRender();
@@ -3864,32 +3875,40 @@ function cmpGetRef(m){
 }
 
 function cmpRender(){
-  var desc=parseFloat($('cmp-desc').value)||0;
+  var showSin=$('cmp-showsinigv')&&$('cmp-showsinigv').checked;
   var items=cmpRows.map(function(m,i){return {m:m,i:i};}).filter(function(x){return x.m!=null;});
   if(!items.length){$('cmp-result').style.display='none';return;}
   $('cmp-result').style.display='block';
   $('cmp-fecha-label').textContent=today();
-  $('cmp-tipo-label').textContent='Comparativo por m² cotizados'+(desc>0?' · Descuento: -'+desc+'%':'');
+  $('cmp-tipo-label').textContent='Comparativo por m² cotizados · Descuento aplicado por material';
   var tbl=$('cmp-table');
   var head='<thead><tr>'+
     '<th style="text-align:left;padding:8px 6px 8px 0;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">Material</th>'+
     '<th style="text-align:center;padding:8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">m²</th>'+
-    '<th style="text-align:right;padding:8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">$/m²</th>'+
-    '<th style="text-align:right;padding:8px 0 8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">Total</th>'+
+    '<th style="text-align:right;padding:8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">$/m² c/IGV</th>'+
+    (showSin?'<th style="text-align:right;padding:8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">$/m² s/IGV</th>':'')+
+    '<th style="text-align:right;padding:8px 0 8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">Total c/IGV</th>'+
+    (showSin?'<th style="text-align:right;padding:8px 0 8px 6px;border-bottom:2px solid #1a1a1a;font-size:10px;font-weight:700;color:#1a1a1a">Total s/IGV</th>':'')+
     '</tr></thead>';
   var rows='<tbody>';
   items.forEach(function(obj,i){
     var m=obj.m;
     var m2el=$('cmp-m2-'+obj.i);
     var m2=m2el?(parseFloat(m2el.value)||1):1;
+    var descEl=$('cmp-desc-'+obj.i);
+    var desc=descEl?(parseFloat(descEl.value)||0):0;
     var pFinal=m.p*(1-desc/100);
     var pTotal=(pFinal*m2).toFixed(2);
+    var pFinalSin=pFinal/1.18;
+    var pTotalSin=(pFinalSin*m2).toFixed(2);
     var bg=i%2===0?'#fff':'#f9f8f6';
     rows+='<tr style="background:'+bg+'">'+
-      '<td style="padding:9px 8px 9px 0;border-bottom:1px solid #eee;font-size:11px;font-weight:600;color:#1a1a1a">'+m.n+'<div style="font-size:9px;color:#999;font-weight:400">'+m.catName+'</div></td>'+
+      '<td style="padding:9px 8px 9px 0;border-bottom:1px solid #eee;font-size:11px;font-weight:600;color:#1a1a1a">'+m.n+'<div style="font-size:9px;color:#999;font-weight:400">'+m.catName+(desc>0?' · -'+desc+'% dto.':'')+'</div></td>'+
       '<td style="padding:9px 6px;border-bottom:1px solid #eee;font-size:11px;color:#666;text-align:center">'+m2.toFixed(2)+' m²</td>'+
       '<td style="padding:9px 6px;border-bottom:1px solid #eee;font-size:12px;color:#555;text-align:right">$'+pFinal.toFixed(2)+'</td>'+
+      (showSin?'<td style="padding:9px 6px;border-bottom:1px solid #eee;font-size:12px;color:#555;text-align:right">$'+pFinalSin.toFixed(2)+'</td>':'')+
       '<td style="padding:9px 0 9px 6px;border-bottom:1px solid #eee;font-size:13px;font-weight:700;color:#1a1a1a;text-align:right">$'+pTotal+'</td>'+
+      (showSin?'<td style="padding:9px 0 9px 6px;border-bottom:1px solid #eee;font-size:13px;font-weight:700;color:#1a1a1a;text-align:right">$'+pTotalSin+'</td>':'')+
       '</tr>';
   });
   rows+='</tbody>';
@@ -3897,27 +3916,33 @@ function cmpRender(){
 }
 
 function cmpCopiarWA(){
-  var desc=parseFloat($('cmp-desc').value)||0;
+  var showSin=$('cmp-showsinigv')&&$('cmp-showsinigv').checked;
   var items=cmpRows.map(function(m,i){return {m:m,i:i};}).filter(function(x){return x.m!=null;});
   if(!items.length){alert('Agrega materiales primero');return;}
   var lines=[];
   lines.push('*COMPARATIVO DE MATERIALES*');
   lines.push('_Pierinelli S.A.C. · '+today()+'_');
-  if(desc>0) lines.push('_-'+desc+'% dto._');
   lines.push('');
   items.forEach(function(obj,i){
     var m=obj.m;
     var m2el=$('cmp-m2-'+obj.i);
     var m2=m2el?(parseFloat(m2el.value)||1):1;
+    var descEl=$('cmp-desc-'+obj.i);
+    var desc=descEl?(parseFloat(descEl.value)||0):0;
     var pFinal=m.p*(1-desc/100);
     var pTotal=(pFinal*m2).toFixed(2);
-    lines.push('*'+(i+1)+'. '+m.n+'*');
+    lines.push('*'+(i+1)+'. '+m.n+'*'+(desc>0?' _(-'+desc+'% dto.)_':''));
     lines.push('   '+m.catName);
     lines.push('   📐 '+m2.toFixed(2)+' m²');
-    lines.push('   💵 $'+pFinal.toFixed(2)+'/m²  →  *$'+pTotal+'*');
+    lines.push('   💵 $'+pFinal.toFixed(2)+'/m² c/IGV  →  *$'+pTotal+'*');
+    if(showSin){
+      var pFinalSin=pFinal/1.18;
+      var pTotalSin=(pFinalSin*m2).toFixed(2);
+      lines.push('   💵 $'+pFinalSin.toFixed(2)+'/m² s/IGV  →  *$'+pTotalSin+'*');
+    }
     lines.push('');
   });
-  lines.push('_Precios incluyen IGV_');
+  lines.push('_Precios incluyen IGV salvo donde se indique_');
   var texto=lines.join('\n');
   var mo=document.getElementById('cmp-wa-modal');
   if(!mo){
